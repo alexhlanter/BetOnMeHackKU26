@@ -1,32 +1,31 @@
-import './Sign-in.css'
+import './Signup.css'
 import { Link } from "react-router-dom";
 
-function SignIn() {
+function SignUp() {
     return (
         <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh"}}>
-            <h1>Welcome!</h1>
+            <h1>Bet On Yourself!</h1>
             <p>Username</p>
             <input
                 type="text"
-                placeholder="JohnDoe123"
+                placeholder="Your username..."
                 style={{margin: "10px", padding: "10px", width: "300px"}}
             />
 
             <p>Password</p>
             <input
                 type="text"
-                placeholder="PassworddrowssaP"
+                placeholder="A good password..."
                 style={{margin: "10px", padding: "10px", width: "300px"}}
             />
 
             <button style={{marginTop: "10px", padding: "10px 30px"}}>
-                Sign in
+                Get Started
             </button>
-            <p className="or">or </p>
-            <Link to="/signup" className="createaccount">Sign Up</Link>
+            <p className="requisites">**Password Requirements**</p>
 
         </div>
     );
 }
 
-export default SignIn;
+export default SignUp;
