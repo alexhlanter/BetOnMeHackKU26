@@ -11,7 +11,7 @@ function Navbar({ onOpenSidebar }) {
       </Link>
 
       <div className="nav-links">
-        <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
+        <NavLink to="/home" end className={({ isActive }) => (isActive ? "active" : "")}>
           Home
         </NavLink>
         <NavLink to="/bets" className={({ isActive }) => (isActive ? "active" : "")}>
