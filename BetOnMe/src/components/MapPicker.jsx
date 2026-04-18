@@ -120,8 +120,8 @@ function MapPicker({ value, onChange, radiusMeters = 75 }) {
                 center={[center.lat, center.lng]}
                 radius={Number(radiusMeters) || 75}
                 pathOptions={{
-                  color: "#7c9cff",
-                  fillColor: "#7c9cff",
+                  color: "#22c55e",
+                  fillColor: "#22c55e",
                   fillOpacity: 0.15,
                 }}
               />

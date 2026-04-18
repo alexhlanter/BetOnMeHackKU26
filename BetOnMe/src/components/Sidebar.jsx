@@ -156,7 +156,7 @@ function Sidebar({ open, onClose, goals = [] }) {
               </div>
             )}
             {walletError && (
-              <div className="small" style={{ color: "#fda4a4", marginTop: 4 }}>
+              <div className="small" style={{ color: "#b91c1c", marginTop: 4 }}>
                 {walletError}
               </div>
             )}

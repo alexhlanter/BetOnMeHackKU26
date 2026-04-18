@@ -1,0 +1,68 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    font-family: Georgia;
+    font-size: 5rem;
+    margin-bottom: 10px;
+    padding-bottom: 20px;
+}
+
+input {
+    width: 300px;
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid white;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+/*Text adjustments*/
+p {
+    width: 275px;
+    text-align: left;
+    font-family: Georgia;
+    font-size: 1.5rem;
+    color: white;
+
+
+}
+
+.requisites{
+    width: 300px;
+    text-align: left;
+    font-size: 1rem;
+    color: gray;
+    padding: 10px;
+}
+
+.rules{
+    width: 300px;
+    text-align: left;
+    font-size: 0.75rem;
+    color: gray;
+    padding: 5px;
+}
+
+button {
+    margin-top: 10px;
+    padding: 10px 30px;
+    color: white;
+    background-color: green ;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: Georgia;
+    cursor: pointer;
+
+}
+
+button:hover {
+    background-color: darkgray;
+}

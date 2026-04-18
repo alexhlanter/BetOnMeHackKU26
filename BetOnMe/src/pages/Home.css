@@ -125,7 +125,7 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #5d7dff, #a35dff);
+  background: linear-gradient(135deg, #22c55e, #4ade80);
   color: white;
   display: grid;
   place-items: center;
@@ -143,7 +143,7 @@
 .ratio-num {
   font-size: 44px;
   font-weight: 800;
-  background: linear-gradient(90deg, #c6d2ff, #e9d5ff);
+  background: linear-gradient(90deg, #15803d, #22c55e);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

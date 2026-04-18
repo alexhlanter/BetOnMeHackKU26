@@ -6,6 +6,7 @@ import Profile from "./pages/Profile";
 import SignIn from "./pages/Sign-in";
 import { AuthProvider } from "./lib/AuthContext";
 import { DevModeProvider } from "./lib/DevModeProvider";
+import SignUp from "./pages/Signup";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
               <Route path="bets" element={<Bets />} />
               <Route path="profile" element={<Profile />} />
               <Route path="sign-in" element={<SignIn />} />
+              <Route path="signup" element={<SignUp />} />
             </Route>
           </Routes>
         </BrowserRouter>

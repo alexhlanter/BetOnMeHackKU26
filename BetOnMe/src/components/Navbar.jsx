@@ -4,7 +4,6 @@ import "./Navbar.css";
 
 function Navbar({ onOpenSidebar }) {
   const { user, logout } = useAuth();
-
   return (
     <nav className="nav">
       <Link to="/" className="brand">

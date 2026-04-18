@@ -157,10 +157,10 @@ function Home() {
                         height: h,
                         background:
                           b.total === 0
-                            ? "rgba(255,255,255,0.05)"
+                            ? "rgba(15,23,42,0.06)"
                             : b.done === b.total
                               ? "linear-gradient(180deg,#4ade80,#22c55e)"
-                              : "linear-gradient(180deg,#7c9cff,#5d7dff)",
+                              : "linear-gradient(180deg,#86efac,#22c55e)",
                       }}
                     >
                       {b.total > 0 && (
