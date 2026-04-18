@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:betonme && next build",
-    "build:betonme": "npm --prefix BetOnMe ci && npm --prefix BetOnMe run build && rm -rf public/app && cp -R BetOnMe/dist public/app",
+    "build:betonme": "npm --prefix BetOnMe ci --include=dev && npm --prefix BetOnMe run build && rm -rf public/app && cp -R BetOnMe/dist public/app",
     "start": "next start",
     "lint": "eslint"
   },
