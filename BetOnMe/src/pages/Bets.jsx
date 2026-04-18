@@ -241,6 +241,17 @@ function Bets() {
                           Upload proof
                         </button>
                       )}
+                      {g.status === "succeeded" && (
+                        <span className="status-emoji" title="Goal succeeded">
+                            👏  
+                        </span>
+                        )}
+
+                        {g.status === "failed" && (
+                        <span className="status-emoji" title="Goal failed">
+                            ❌  
+                        </span>
+                        )}
                       {devMode && g.status === "active" && (
                         <>
                           <button
