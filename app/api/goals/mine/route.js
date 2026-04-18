@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/auth";
+
+// Convenience endpoint so the frontend never has to echo userId back.
+// Equivalent to GET /api/goals/user/<sessionUser.id>.
 
 function toIsoOrNull(value) {
   if (!value) return null;
@@ -40,36 +42,23 @@ function serializeGoal(g) {
   };
 }
 
-export async function GET(request, context) {
-  const { userId } = await context.params;
-
-  if (!ObjectId.isValid(userId)) {
-    return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
-  }
-
+export async function GET(request) {
   const sessionUser = await getSessionUser(request);
   if (!sessionUser) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-  // Users may only read their own goals. Admin override can come later via
-  // the same x-admin-secret header used elsewhere.
-  if (sessionUser._id.toString() !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   try {
     const db = await getDb();
-    const goals = db.collection("goals");
-
-    const cursor = goals
-      .find({ userId: new ObjectId(userId) })
-      .sort({ createdAt: -1 });
-
-    const list = await cursor.toArray();
+    const list = await db
+      .collection("goals")
+      .find({ userId: sessionUser._id })
+      .sort({ createdAt: -1 })
+      .toArray();
 
     return NextResponse.json({ goals: list.map(serializeGoal) });
   } catch (err) {
-    console.error("[GET /api/goals/user/[userId]]", err);
+    console.error("[GET /api/goals/mine]", err);
     return NextResponse.json(
       { error: "Failed to fetch goals" },
       { status: 500 }

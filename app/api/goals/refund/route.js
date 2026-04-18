@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { cancelEscrow } from "@/lib/xrpl";
+import { getSessionUser } from "@/lib/auth";
 
 // User-triggered EscrowCancel. Valid only for succeeded goals whose
 // CancelAfter (= goal.deadline) has already passed. This is how the user
@@ -13,6 +14,14 @@ import { cancelEscrow } from "@/lib/xrpl";
 
 export async function POST(request) {
   try {
+    const sessionUser = await getSessionUser(request);
+    if (!sessionUser) {
+      return NextResponse.json(
+        { error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
     let body;
     try {
       body = await request.json();
@@ -37,6 +46,12 @@ export async function POST(request) {
     const goal = await goals.findOne({ _id });
     if (!goal) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
+    if (!goal.userId.equals(sessionUser._id)) {
+      return NextResponse.json(
+        { error: "Goal does not belong to the signed-in user" },
+        { status: 403 }
+      );
     }
 
     if (goal.status !== "succeeded") {

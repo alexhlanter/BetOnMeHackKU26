@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { Wallet } from "xrpl";
 import { getDb } from "@/lib/mongodb";
 import { createEscrow } from "@/lib/xrpl";
 import { getCharityById } from "@/lib/charities";
+import { getSessionUser } from "@/lib/auth";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -58,6 +58,14 @@ function validateSingleTarget(target) {
 
 export async function POST(request) {
   try {
+    const sessionUser = await getSessionUser(request);
+    if (!sessionUser) {
+      return NextResponse.json(
+        { error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
     let body;
     try {
       body = await request.json();
@@ -68,20 +76,12 @@ export async function POST(request) {
       );
     }
 
-    const userId = body?.userId;
     const title = body?.title;
     const stakeAmount = body?.stakeAmount;
     const type = body?.type;
     const location = body?.location;
     const target = body?.target;
     const charityId = body?.charityId;
-
-    if (!isNonEmptyString(userId) || !ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { error: 'Field "userId" must be a valid MongoDB ObjectId string' },
-        { status: 400 }
-      );
-    }
 
     if (!isNonEmptyString(title)) {
       return NextResponse.json(
@@ -180,13 +180,7 @@ export async function POST(request) {
     }
 
     const db = await getDb();
-    const users = db.collection("users");
     const goals = db.collection("goals");
-
-    const owner = await users.findOne({ _id: new ObjectId(userId) });
-    if (!owner) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
 
     // Decision #8: compound index for fast "any active goal?" lookups.
     await goals.createIndex({ userId: 1 });
@@ -202,7 +196,7 @@ export async function POST(request) {
 
     const createdAt = new Date();
     const doc = {
-      userId: new ObjectId(userId),
+      userId: sessionUser._id,
       title: title.trim(),
       stakeAmount: stake,
       deadline,

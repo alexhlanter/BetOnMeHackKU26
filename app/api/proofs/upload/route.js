@@ -7,6 +7,7 @@ import exifr from "exifr";
 import { getDb } from "@/lib/mongodb";
 import { verifyProof } from "@/lib/verification";
 import { resolveGoal } from "@/lib/resolve";
+import { getSessionUser } from "@/lib/auth";
 
 // Accepts multipart/form-data with these fields:
 //   - file     (required) the image File blob
@@ -45,10 +46,18 @@ function extFromMime(mime) {
 
 export async function POST(request) {
   try {
+    const sessionUser = await getSessionUser(request);
+    if (!sessionUser) {
+      return NextResponse.json(
+        { error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+
     // Tolerant parsing: fall back to JSON for back-compat during migration.
     const contentType = request.headers.get("content-type") || "";
 
-    let goalId, userId, imageFile, imageUrlOverride;
+    let goalId, imageFile, imageUrlOverride;
 
     if (contentType.includes("multipart/form-data")) {
       let form;
@@ -61,7 +70,6 @@ export async function POST(request) {
         );
       }
       goalId = form.get("goalId");
-      userId = form.get("userId");
       imageFile = form.get("file");
       if (!(imageFile instanceof Blob)) {
         return NextResponse.json(
@@ -98,7 +106,6 @@ export async function POST(request) {
         );
       }
       goalId = body?.goalId;
-      userId = body?.userId;
       imageUrlOverride = body?.imageUrl; // legacy path, no EXIF verification possible
     } else {
       return NextResponse.json(
@@ -113,12 +120,6 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    if (typeof userId !== "string" || !ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { error: 'Field "userId" must be a valid MongoDB ObjectId string' },
-        { status: 400 }
-      );
-    }
 
     const db = await getDb();
     const goals = db.collection("goals");
@@ -128,10 +129,9 @@ export async function POST(request) {
     if (!goal) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
-    const userObjectId = new ObjectId(userId);
-    if (!goal.userId.equals(userObjectId)) {
+    if (!goal.userId.equals(sessionUser._id)) {
       return NextResponse.json(
-        { error: "Goal does not belong to this user" },
+        { error: "Goal does not belong to the signed-in user" },
         { status: 403 }
       );
     }
@@ -182,7 +182,7 @@ export async function POST(request) {
 
     const doc = {
       goalId: new ObjectId(goalId),
-      userId: userObjectId,
+      userId: sessionUser._id,
       imageUrl,
       capturedAt,
       gps,

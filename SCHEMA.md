@@ -72,19 +72,35 @@ passes**, even if they succeeded early. Pick `deadline` thoughtfully:
 
 ### `users`
 
-| Field           | Type      | Required | Notes                                                     |
-| --------------- | --------- | -------- | --------------------------------------------------------- |
-| `_id`           | ObjectId  | yes      | Mongo-assigned.                                           |
-| `email`         | string    | yes      | Lowercased. **Unique index.**                             |
-| `walletAddress` | string    | yes      | See Open Question #1 — semantics not yet pinned down.     |
-| `createdAt`     | Date      | yes      | Set by server.                                            |
+| Field           | Type      | Required | Notes                                                                                 |
+| --------------- | --------- | -------- | ------------------------------------------------------------------------------------- |
+| `_id`           | ObjectId  | yes      | Mongo-assigned.                                                                       |
+| `username`      | string    | yes      | Lowercased, 3–32 chars, `[a-zA-Z0-9_]`. **Unique index.** Used for login.             |
+| `displayName`   | string    | yes      | 1–50 chars. Rendered in the app.                                                      |
+| `passwordHash`  | string    | yes      | bcrypt hash. **Never returned by any API.**                                           |
+| `email`         | string    | no       | Lowercased if present. Unique *only when set* (partial unique index).                 |
+| `walletAddress` | string    | yes      | Derived server-side from `USER_WALLET_SEED` (all users share one wallet for now).     |
+| `createdAt`     | Date      | yes      | Set by server.                                                                        |
 
 **Indexes**
-- `{ email: 1 }` unique (created lazily in `POST /api/users/create`).
+- `{ username: 1 }` unique (created lazily in `POST /api/auth/register`).
+- `{ email: 1 }` unique, partial filter `{ email: { $type: "string" } }` (created lazily).
 
 **Writers / Readers**
-- Write: `POST /api/users/create`
-- Read:  `GET /api/users/[id]`, existence check in `POST /api/goals/create`
+- Write: `POST /api/auth/register` (previously `POST /api/users/create`, now deprecated/410).
+- Read:  `GET /api/auth/me`, session lookup in every authenticated route.
+
+**Auth flow (sessions)**
+
+- `POST /api/auth/register` — creates user, sets `hk_session` cookie.
+- `POST /api/auth/login` — verifies `{username, password}`, sets cookie.
+- `POST /api/auth/logout` — clears cookie.
+- `GET /api/auth/me` — returns current user or `{ user: null }`.
+
+The cookie is an HMAC-signed `base64url(payload).base64url(sig)` blob holding
+`{ userId, username, iat, exp }`. It's `httpOnly`, `SameSite=Lax`, 7-day TTL,
+and signed with `SESSION_SECRET`. Any authenticated API route reads it via
+`lib/auth.js#getSessionUser(request)` and refuses with **401** if absent/invalid.
 
 ---
 
