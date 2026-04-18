@@ -1,5 +1,6 @@
 import { Client, Wallet, xrpToDrops } from "xrpl";
 import type {
+  CancelEscrowParams,
   CreateEscrowParams,
   CreateEscrowResult,
   EscrowTxResult,
@@ -129,6 +130,53 @@ export async function finishEscrow(
 
     if (engineResult && engineResult !== "tesSUCCESS") {
       throw new Error(`EscrowFinish failed: ${engineResult}`);
+    }
+
+    return { txHash: result.result.hash };
+  } finally {
+    await client.disconnect();
+  }
+}
+
+export async function cancelEscrow(
+  params: CancelEscrowParams
+): Promise<EscrowTxResult> {
+  const { userSeed, userAddress, escrowSequence } = params;
+
+  if (!Number.isInteger(escrowSequence) || escrowSequence <= 0) {
+    throw new Error("escrowSequence must be a positive integer");
+  }
+
+  const client = new Client(TESTNET_WS);
+  await client.connect();
+
+  try {
+    const wallet = Wallet.fromSeed(userSeed);
+
+    if (wallet.address !== userAddress) {
+      throw new Error(
+        `userSeed derives ${wallet.address}, not userAddress ${userAddress}`
+      );
+    }
+
+    const prepared = await client.autofill({
+      TransactionType: "EscrowCancel",
+      Account: wallet.address,
+      Owner: userAddress,
+      OfferSequence: escrowSequence,
+    });
+
+    const signed = wallet.sign(prepared);
+    const result = await client.submitAndWait(signed.tx_blob);
+
+    const meta = result.result.meta;
+    const engineResult =
+      typeof meta === "object" && meta !== null && "TransactionResult" in meta
+        ? (meta as { TransactionResult: string }).TransactionResult
+        : undefined;
+
+    if (engineResult && engineResult !== "tesSUCCESS") {
+      throw new Error(`EscrowCancel failed: ${engineResult}`);
     }
 
     return { txHash: result.result.hash };
