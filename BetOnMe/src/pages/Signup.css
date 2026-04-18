@@ -1,4 +1,4 @@
-.container {
+.signup-page {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -6,7 +6,7 @@
     height: 100vh;
 }
 
-h1 {
+.signup-page h1 {
     text-align: center;
     font-family: Georgia;
     font-size: 5rem;
@@ -14,7 +14,7 @@ h1 {
     padding-bottom: 20px;
 }
 
-input {
+.signup-page input {
     width: 300px;
     padding: 10px;
     margin: 10px;
@@ -23,18 +23,15 @@ input {
     font-size: 1rem;
 }
 
-/*Text adjustments*/
-p {
+.signup-page p {
     width: 275px;
     text-align: left;
     font-family: Georgia;
     font-size: 1.5rem;
     color: white;
-
-
 }
 
-.requisites{
+.signup-page .requisites {
     width: 300px;
     text-align: left;
     font-size: 1rem;
@@ -42,7 +39,7 @@ p {
     padding: 10px;
 }
 
-.rules{
+.signup-page .rules {
     width: 300px;
     text-align: left;
     font-size: 0.75rem;
@@ -50,19 +47,18 @@ p {
     padding: 5px;
 }
 
-button {
+.signup-page button {
     margin-top: 10px;
     padding: 10px 30px;
     color: white;
-    background-color: green ;
+    background-color: green;
     border: none;
     border-radius: 8px;
     font-size: 1rem;
     font-family: Georgia;
     cursor: pointer;
-
 }
 
-button:hover {
+.signup-page button:hover {
     background-color: darkgray;
 }

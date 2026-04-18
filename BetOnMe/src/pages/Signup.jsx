@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 function SignUp() {
     return (
-        <div style={{display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh"}}>
+        <div className="signup-page">
             <h1>Bet On Yourself!</h1>
             <p>Username</p>
             <input
