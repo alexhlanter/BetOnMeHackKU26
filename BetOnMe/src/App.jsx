@@ -8,6 +8,7 @@ import { AuthProvider } from "./lib/AuthContext";
 import { DevModeProvider } from "./lib/DevModeProvider";
 import SignUp from "./pages/Signup";
 import Landingpage from "./pages/Landingpage";
+import Docs from "./pages/Docs";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
               <Route index element={<Landingpage />} />
               <Route path="home" element={<Home />} />
               <Route path="bets" element={<Bets />} />
+              <Route path="docs" element={<Docs />} />
               <Route path="profile" element={<Profile />} />
               <Route path="sign-in" element={<SignIn />} />
               <Route path="signup" element={<SignUp />} />

@@ -19,7 +19,8 @@ function Layout() {
     if (loading) return;
     const isLanding = location.pathname === "/";
     const isAuthPage = location.pathname.startsWith("/sign-in");
-    if (!user && !isAuthPage && !isLanding) {
+    const isDocs = location.pathname.startsWith("/docs");
+    if (!user && !isAuthPage && !isLanding && !isDocs) {
       navigate("/sign-in", { replace: true, state: { from: location.pathname } });
     }
     if (user && isAuthPage) {
