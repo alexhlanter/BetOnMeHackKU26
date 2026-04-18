@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import AddBetModal from "../components/AddBetModal";
+import ProofUploadModal from "../components/ProofUploadModal";
 import { useAuth } from "../lib/authContextCore";
 import "./Home.css";
 
@@ -57,6 +58,7 @@ function Home() {
   const { user } = useAuth();
   const { goals, refreshGoals } = useOutletContext();
   const [modalOpen, setModalOpen] = useState(false);
+  const [proofOpen, setProofOpen] = useState(false);
   const now = useNow();
 
   const activeGoals = useMemo(
@@ -111,10 +113,16 @@ function Home() {
                   </div>
                 </div>
                 <div className="current-bet-actions">
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setProofOpen(true)}
+                  >
+                    📷 Upload proof
+                  </button>
                   <Link to="/bets" className="btn">
                     View all bets
                   </Link>
-                  <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
+                  <button className="btn" onClick={() => setModalOpen(true)}>
                     + Add another
                   </button>
                 </div>
@@ -209,6 +217,12 @@ function Home() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreated={refreshGoals}
+      />
+      <ProofUploadModal
+        open={proofOpen}
+        goal={currentBet}
+        onClose={() => setProofOpen(false)}
+        onUploaded={refreshGoals}
       />
     </div>
   );

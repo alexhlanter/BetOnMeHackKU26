@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAuth } from "../lib/authContextCore";
+import { useDevMode } from "../lib/devModeCore";
 import "./Sidebar.css";
 
 function truncateAddr(addr) {
@@ -9,6 +10,7 @@ function truncateAddr(addr) {
 
 function Sidebar({ open, onClose, goals = [] }) {
   const { user } = useAuth();
+  const { enabled, setEnabled, adminSecret, setAdminSecret } = useDevMode();
 
   useEffect(() => {
     function onKey(e) {
@@ -47,6 +49,34 @@ function Sidebar({ open, onClose, goals = [] }) {
               {truncateAddr(user?.walletAddress)}
             </div>
           </div>
+        </div>
+
+        <div className="sidebar-section">
+          <div className="section-title">Dev mode</div>
+          <label className="dev-toggle">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
+            <span>Enable dev actions (force succeed / fail)</span>
+          </label>
+          {enabled && (
+            <div style={{ marginTop: 10 }}>
+              <label className="label">Admin secret</label>
+              <input
+                type="password"
+                className="input"
+                value={adminSecret}
+                onChange={(e) => setAdminSecret(e.target.value)}
+                placeholder="ADMIN_SECRET from .env.local"
+              />
+              <div className="muted small" style={{ marginTop: 4 }}>
+                Needed to call <code>/api/goals/resolve</code>. Stored in your
+                browser only.
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="sidebar-section">
