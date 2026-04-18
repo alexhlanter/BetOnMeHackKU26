@@ -11,6 +11,50 @@ const ALLOWED = [
   "image/heif",
 ];
 
+// iOS Safari (and WhatsApp/iMessage pipelines) strip EXIF GPS from
+// uploaded photos. We ask the browser for live coordinates as a
+// fallback so a real on-location check-in still verifies.
+function getBrowserLocation(timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy ?? null,
+        }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60_000 }
+    );
+  });
+}
+
+// Human-readable reasons for verification verdicts. The backend returns
+// short machine codes; this maps them to something a user can act on.
+const REASON_COPY = {
+  ok: "Looks good — you were at the right place at the right time.",
+  no_exif_gps:
+    "We couldn't read a GPS tag from your photo and didn't get a browser location. Try again with location permission enabled.",
+  no_exif_time:
+    "We couldn't read a capture time from your photo. Try a freshly taken photo (not a screenshot).",
+  goal_missing_location:
+    "This goal has no location configured — re-create the goal with a pin.",
+  goal_missing_target_time:
+    "This goal has no target time set — re-create the goal.",
+  goal_missing_window: "This recurring goal has no valid time window.",
+  outside_geofence:
+    "You're outside the goal's geofence. Get closer to the pin and try again.",
+  outside_time_window:
+    "This check-in is outside the allowed time window for the goal.",
+  captured_in_future:
+    "Your photo's timestamp is in the future — check your phone's clock.",
+  unknown_goal_type: "Unsupported goal type.",
+};
+
 function ProofUploadModal({ open, goal, onClose, onUploaded }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -81,6 +125,18 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
 
     setSubmitting(true);
     try {
+      // Ask for live GPS while we prepare the request. If the user
+      // denies/times out, we just submit without it — EXIF may still
+      // work, and if it doesn't the backend returns a clear error.
+      const loc = await getBrowserLocation();
+      if (loc) {
+        fd.append("clientLat", String(loc.lat));
+        fd.append("clientLng", String(loc.lng));
+        if (loc.accuracy !== null)
+          fd.append("clientAccuracy", String(loc.accuracy));
+        fd.append("clientCapturedAt", new Date().toISOString());
+      }
+
       const res = await api.uploadProof(fd);
       setResult(res);
       onUploaded?.(res);
@@ -105,8 +161,9 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
 
         <div className="muted" style={{ marginBottom: 12 }}>
           For <strong>{goal?.title || "this goal"}</strong>. We read EXIF GPS +
-          timestamp from your photo, compare it to the goal's location &amp;
-          window, and auto-resolve on success.
+          timestamp from your photo when available, fall back to your
+          browser's location otherwise, compare to the goal's geofence, and
+          auto-resolve on success.
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
@@ -150,7 +207,9 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
                 {verdict === "verified" ? "✓ Verified" : "✗ Rejected"}
               </div>
               <div className="muted small">
-                {result.verification?.reason || "(no reason)"}
+                {REASON_COPY[result.verification?.reason] ||
+                  result.verification?.reason ||
+                  "(no reason)"}
               </div>
               {typeof result.verification?.distanceMeters === "number" && (
                 <div className="muted small">

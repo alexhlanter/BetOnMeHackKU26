@@ -58,6 +58,12 @@ export async function POST(request) {
     const contentType = request.headers.get("content-type") || "";
 
     let goalId, imageFile, imageUrlOverride;
+    // Browser-side fallback fields — populated from the form when
+    // multipart upload is used. Used only if EXIF doesn't yield GPS.
+    let clientLatRaw = null;
+    let clientLngRaw = null;
+    let clientAccuracyRaw = null;
+    let clientCapturedAtRaw = null;
 
     if (contentType.includes("multipart/form-data")) {
       let form;
@@ -71,6 +77,10 @@ export async function POST(request) {
       }
       goalId = form.get("goalId");
       imageFile = form.get("file");
+      clientLatRaw = form.get("clientLat");
+      clientLngRaw = form.get("clientLng");
+      clientAccuracyRaw = form.get("clientAccuracy");
+      clientCapturedAtRaw = form.get("clientCapturedAt");
       if (!(imageFile instanceof Blob)) {
         return NextResponse.json(
           { error: 'Field "file" (an image) is required' },
@@ -139,6 +149,11 @@ export async function POST(request) {
     let imageUrl = null;
     let capturedAt = null;
     let gps = null;
+    // Tracks whether the coords we verified against came from the
+    // photo's EXIF ("exif") or the browser geolocation fallback
+    // ("client"). Useful for audits and demo transparency.
+    let gpsSource = null;
+    let capturedAtSource = null;
 
     if (imageFile) {
       const arrayBuffer = await imageFile.arrayBuffer();
@@ -158,11 +173,14 @@ export async function POST(request) {
       const lng = exifData.longitude ?? exifData.GPSLongitude ?? null;
       if (typeof lat === "number" && typeof lng === "number") {
         gps = { lat, lng, accuracyMeters: null };
+        gpsSource = "exif";
       }
       if (exifData.DateTimeOriginal) {
         capturedAt = new Date(exifData.DateTimeOriginal);
+        capturedAtSource = "exif";
       } else if (exifData.CreateDate) {
         capturedAt = new Date(exifData.CreateDate);
+        capturedAtSource = "exif";
       }
 
       // Disk persistence is best-effort. Vercel serverless mounts a
@@ -189,6 +207,30 @@ export async function POST(request) {
       imageUrl = imageUrlOverride ?? null;
     }
 
+    // Browser-provided fallback: iOS Safari and most messaging apps
+    // strip EXIF GPS during upload, so the client-side submit may
+    // attach live navigator.geolocation coordinates. We only use them
+    // if EXIF didn't give us anything.
+    if (!gps && clientLatRaw != null && clientLngRaw != null) {
+      const lat = Number(clientLatRaw);
+      const lng = Number(clientLngRaw);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const acc =
+          clientAccuracyRaw != null && Number.isFinite(Number(clientAccuracyRaw))
+            ? Number(clientAccuracyRaw)
+            : null;
+        gps = { lat, lng, accuracyMeters: acc };
+        gpsSource = "client";
+      }
+    }
+    if (!capturedAt && clientCapturedAtRaw) {
+      const parsed = new Date(clientCapturedAtRaw);
+      if (!Number.isNaN(parsed.getTime())) {
+        capturedAt = parsed;
+        capturedAtSource = "client";
+      }
+    }
+
     const verdict = verifyProof(goal, { gps, capturedAt });
     const createdAt = new Date();
 
@@ -199,7 +241,9 @@ export async function POST(request) {
       userId: sessionUser._id,
       imageUrl,
       capturedAt,
+      capturedAtSource,
       gps,
+      gpsSource,
       createdAt,
       verification: {
         status: verdict.ok ? "verified" : "rejected",
@@ -249,7 +293,9 @@ export async function POST(request) {
         userId: doc.userId.toString(),
         imageUrl: doc.imageUrl,
         capturedAt: doc.capturedAt ? doc.capturedAt.toISOString() : null,
+        capturedAtSource: doc.capturedAtSource,
         gps: doc.gps,
+        gpsSource: doc.gpsSource,
         createdAt: doc.createdAt.toISOString(),
         verification: {
           status: doc.verification.status,
