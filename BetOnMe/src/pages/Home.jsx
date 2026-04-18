@@ -218,7 +218,7 @@ function Home() {
 
           <section className="streak box">
             <div className="section-title">Current Streak</div>
-            <div>{user?.displayName || "Hello"} 👋</div>
+            <div>{user?.displayName || "Hello"} 🔥</div>
             <div className="muted">
               {stats.streak <= 1
               ? "No streak yet... Don't lose hope!!"
