@@ -3,6 +3,67 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/authContextCore";
 import "./Sign-in.css";
 
+// Translates raw API errors into friendly auth-form copy. Returns
+// { message, switchTo } so we can also offer "switch to sign-in" /
+// "switch to register" CTAs when appropriate.
+function describeAuthError(err, mode) {
+  if (!err) return { message: "Something went wrong.", switchTo: null };
+
+  if (err.kind === "network") {
+    return {
+      message:
+        "Couldn't reach the server. Check your internet connection and try again.",
+      switchTo: null,
+    };
+  }
+
+  const raw = String(err.message || "").toLowerCase();
+
+  if (mode === "login" && err.status === 401) {
+    return {
+      message:
+        "Wrong username or password. Make sure you're using the same username you registered with.",
+      switchTo: { to: "register", label: "Don't have an account? Register" },
+    };
+  }
+
+  if (mode === "register" && err.status === 409) {
+    return {
+      message:
+        "That username is already taken. Pick another one — or sign in if it's yours.",
+      switchTo: { to: "login", label: "Already have an account? Sign in" },
+    };
+  }
+
+  if (raw.includes("password must be at least")) {
+    return {
+      message: "Password must be at least 8 characters.",
+      switchTo: null,
+    };
+  }
+  if (raw.includes("username must be 3-32")) {
+    return {
+      message:
+        "Username must be 3–32 characters and only contain letters, numbers, or underscores.",
+      switchTo: null,
+    };
+  }
+  if (raw.includes("displayname must be 1-50")) {
+    return {
+      message: "Display name is required (1–50 characters).",
+      switchTo: null,
+    };
+  }
+  if (err.status >= 500) {
+    return {
+      message: `Server error: ${err.message}. Try again in a few seconds.`,
+      switchTo: null,
+    };
+  }
+
+  return { message: err.message || "Something went wrong.", switchTo: null };
+}
+
 function SignIn() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -12,11 +73,38 @@ function SignIn() {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const [errorSwitch, setErrorSwitch] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  function clientValidate() {
+    if (!username.trim()) return "Username is required.";
+    if (mode === "register") {
+      if (!/^[a-zA-Z0-9_]{3,32}$/.test(username)) {
+        return "Username must be 3–32 characters and only contain letters, numbers, or underscores.";
+      }
+      if (!displayName.trim()) return "Display name is required.";
+      if (displayName.trim().length > 50) {
+        return "Display name must be 50 characters or fewer.";
+      }
+    }
+    if (!password) return "Password is required.";
+    if (mode === "register" && password.length < 8) {
+      return "Password must be at least 8 characters.";
+    }
+    return null;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    setErrorSwitch(null);
+
+    const clientErr = clientValidate();
+    if (clientErr) {
+      setError(clientErr);
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (mode === "login") {
@@ -27,7 +115,9 @@ function SignIn() {
       const to = location.state?.from || "/";
       navigate(to, { replace: true });
     } catch (err) {
-      setError(err.message || "Something went wrong");
+      const { message, switchTo } = describeAuthError(err, mode);
+      setError(message);
+      setErrorSwitch(switchTo);
     } finally {
       setSubmitting(false);
     }
@@ -96,7 +186,24 @@ function SignIn() {
             />
           </div>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error && (
+            <div className="auth-error">
+              <div>{error}</div>
+              {errorSwitch && (
+                <button
+                  type="button"
+                  className="auth-error-switch"
+                  onClick={() => {
+                    setMode(errorSwitch.to);
+                    setError(null);
+                    setErrorSwitch(null);
+                  }}
+                >
+                  {errorSwitch.label} →
+                </button>
+              )}
+            </div>
+          )}
 
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Working…" : mode === "login" ? "Sign in" : "Create account"}

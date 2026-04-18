@@ -49,4 +49,20 @@
   padding: 10px 12px;
   border-radius: 10px;
   font-size: 14px;
+  line-height: 1.4;
+}
+
+.auth-error-switch {
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  color: #fdc4c4;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
+
+.auth-error-switch:hover {
+  color: #fff;
 }

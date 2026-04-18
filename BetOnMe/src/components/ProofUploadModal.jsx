@@ -49,32 +49,107 @@ function getBrowserLocation(timeoutMs = 8000) {
   });
 }
 
-// Human-readable reasons for verification verdicts. The backend returns
-// short machine codes; this maps them to something a user can act on.
+// Human-readable copy for verification verdicts. The backend returns
+// short machine codes; we translate them to a one-line headline plus
+// a "fix" sentence telling the user exactly what to change.
 const REASON_COPY = {
-  ok: "Looks good — you were at the right place at the right time.",
-  no_exif_gps:
-    "We couldn't read a GPS tag from your photo and didn't get a browser location. Try again with location permission enabled.",
-  no_exif_time:
-    "We couldn't read a capture time from your photo. Try a freshly taken photo (not a screenshot).",
-  goal_missing_location:
-    "This goal has no location configured — re-create the goal with a pin.",
-  goal_missing_target_time:
-    "This goal has no target time set — re-create the goal.",
-  goal_missing_window: "This recurring goal has no valid time window.",
-  outside_geofence:
-    "You're outside the goal's geofence. Get closer to the pin and try again.",
-  outside_time_window:
-    "This check-in is outside the allowed time window for the goal.",
-  captured_in_future:
-    "Your photo's timestamp is in the future — check your phone's clock.",
-  unknown_goal_type: "Unsupported goal type.",
+  ok: {
+    title: "Verified",
+    body: "You were at the right place at the right time.",
+    fix: null,
+  },
+  no_exif_gps: {
+    title: "No location data",
+    body: "We couldn't read a GPS tag from your photo, and your browser didn't give us live coordinates either.",
+    fix: "Allow location access in the banner above (or in your browser settings) and submit again. iOS Safari users: Settings → Safari → Location → Allow, then reload the page.",
+  },
+  no_exif_time: {
+    title: "No capture time",
+    body: "We couldn't read when your photo was taken.",
+    fix: "Take a fresh photo with your phone's camera and try again — screenshots and edited images often lose their timestamp.",
+  },
+  goal_missing_location: {
+    title: "Goal has no location",
+    body: "This goal was saved without a map pin, so we can't check distance.",
+    fix: "Delete this goal and create a new one — make sure to drop a pin on the map.",
+  },
+  goal_missing_target_time: {
+    title: "Goal has no target time",
+    body: "This goal was saved without a target time.",
+    fix: "Delete this goal and create a new one with a target time.",
+  },
+  goal_missing_window: {
+    title: "Goal has no valid window",
+    body: "This recurring goal is missing its start/end times.",
+    fix: "Delete this goal and create a new one.",
+  },
+  outside_geofence: {
+    title: "Too far from the goal location",
+    body: "Your check-in is outside the goal's geofence radius.",
+    fix: "Walk closer to the map pin and try again. If the goal's radius is too tight, you'll need to recreate it with a wider check-in radius.",
+  },
+  outside_time_window: {
+    title: "Outside the check-in window",
+    body: "Your check-in time isn't within the goal's allowed window.",
+    fix: "If you can wait, try again during the window. Otherwise, create a new goal — defaults give you ±2 hours, and you can stretch that to 24h when creating it.",
+  },
+  captured_in_future: {
+    title: "Timestamp is in the future",
+    body: "Your photo's timestamp is more than 10 minutes ahead of the server clock.",
+    fix: "Check your device's date & time settings (set to automatic), then take a fresh photo and try again.",
+  },
+  unknown_goal_type: {
+    title: "Unsupported goal type",
+    body: "This goal's type isn't recognized.",
+    fix: "Delete this goal and create a new one.",
+  },
 };
+
+function reasonCopy(code) {
+  return (
+    REASON_COPY[code] || {
+      title: "Rejected",
+      body: code ? `Verification failed: ${code}.` : "Verification failed.",
+      fix: "Try again, or check the technical details below.",
+    }
+  );
+}
+
+// Friendly upload-error messages for the OUTER request errors (network,
+// auth, server crash, etc.) — distinct from the per-proof rejection
+// reasons above, which only fire when the request reached the server
+// and returned a 2xx with a verdict.
+function uploadErrorMessage(err) {
+  if (!err) return "Upload failed for an unknown reason.";
+  if (err.kind === "network") {
+    return "Couldn't reach the server. Check your internet connection and try again.";
+  }
+  if (err.status === 401) {
+    return "Your session expired. Please sign in again, then retry.";
+  }
+  if (err.status === 403) {
+    return "This goal doesn't belong to your account.";
+  }
+  if (err.status === 404) {
+    return "That goal no longer exists. It may have been deleted — refresh and try again.";
+  }
+  if (err.status === 413) {
+    return "Photo is too large. The server caps uploads at 10 MB.";
+  }
+  if (err.status === 415) {
+    return "Unsupported photo format. JPG, PNG, WebP, or HEIC only.";
+  }
+  if (err.status >= 500) {
+    return `Server error: ${err.message}. Try again in a few seconds.`;
+  }
+  return err.message || "Upload failed.";
+}
 
 function ProofUploadModal({ open, goal, onClose, onUploaded }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errorDetail, setErrorDetail] = useState(null);
   const [result, setResult] = useState(null);
   // Geolocation state, fetched eagerly when the modal opens so the
   // user sees up-front whether their browser will hand us coords —
@@ -112,6 +187,7 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
     if (!open) {
       setFile(null);
       setError(null);
+      setErrorDetail(null);
       setResult(null);
       setSubmitting(false);
       setLocStatus("idle");
@@ -135,18 +211,24 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
 
   function pickFile(f) {
     setError(null);
+    setErrorDetail(null);
     setResult(null);
     if (!f) {
       setFile(null);
       return;
     }
     if (f.type && !ALLOWED.includes(f.type)) {
-      setError(`Unsupported file type: ${f.type}`);
+      setError(
+        `Unsupported file type "${f.type}". Use JPG, PNG, WebP, or HEIC.`
+      );
       setFile(null);
       return;
     }
     if (f.size > 10 * 1024 * 1024) {
-      setError("File too large (max 10 MB).");
+      const sizeMB = (f.size / 1024 / 1024).toFixed(2);
+      setError(
+        `Photo is too large (${sizeMB} MB). The server caps uploads at 10 MB — try a smaller photo or a screenshot.`
+      );
       setFile(null);
       return;
     }
@@ -156,8 +238,13 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    setErrorDetail(null);
     if (!file) return setError("Pick a photo first.");
-    if (!goal?.id) return setError("Missing goal id.");
+    if (!goal?.id) {
+      return setError(
+        "We lost track of which goal you're checking into. Close this modal and try again."
+      );
+    }
 
     const fd = new FormData();
     fd.append("file", file);
@@ -186,7 +273,12 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
       setResult(res);
       onUploaded?.(res);
     } catch (err) {
-      setError(err.message || "Upload failed");
+      setError(uploadErrorMessage(err));
+      setErrorDetail({
+        status: err?.status ?? null,
+        kind: err?.kind ?? null,
+        detail: err?.detail ?? null,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -281,25 +373,53 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
             )}
           </div>
 
-          {error && <div className="error-banner">{error}</div>}
+          {error && (
+            <div className="error-banner">
+              <div>{error}</div>
+              {errorDetail &&
+                (errorDetail.status || errorDetail.detail) && (
+                  <details className="error-details">
+                    <summary>Technical details</summary>
+                    <pre>
+                      {JSON.stringify(
+                        {
+                          status: errorDetail.status,
+                          kind: errorDetail.kind,
+                          detail: errorDetail.detail,
+                        },
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </details>
+                )}
+            </div>
+          )}
 
-          {result && (
+          {result && (() => {
+            const copy = reasonCopy(result.verification?.reason);
+            return (
             <div
               className={`result-banner ${
                 verdict === "verified" ? "ok" : "bad"
               }`}
             >
               <div className="result-title">
-                {verdict === "verified" ? "✓ Verified" : "✗ Rejected"}
+                {verdict === "verified" ? "✓ " : "✗ "}
+                {copy.title}
               </div>
-              <div className="muted small">
-                {REASON_COPY[result.verification?.reason] ||
-                  result.verification?.reason ||
-                  "(no reason)"}
-              </div>
+              <div className="muted small">{copy.body}</div>
+              {copy.fix && (
+                <div className="small fix-hint" style={{ marginTop: 6 }}>
+                  <strong>How to fix:</strong> {copy.fix}
+                </div>
+              )}
               {typeof result.verification?.distanceMeters === "number" && (
-                <div className="muted small">
+                <div className="muted small" style={{ marginTop: 6 }}>
                   distance: {Math.round(result.verification.distanceMeters)} m
+                  {goal?.location?.radiusMeters
+                    ? ` (allowed: ${goal.location.radiusMeters} m)`
+                    : ""}
                 </div>
               )}
               {result.resolution?.status && (
@@ -372,7 +492,8 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           <div className="modal-actions">
             <button type="button" className="btn" onClick={onClose}>

@@ -58,19 +58,62 @@ function AddBetModal({ open, onClose, onCreated }) {
     setForm((f) => ({ ...f, ...patch }));
   }
 
+  function describeCreateError(err) {
+    if (!err) return "Failed to create goal.";
+    if (err.kind === "network") {
+      return "Couldn't reach the server. Check your internet connection and try again.";
+    }
+    if (err.status === 401) {
+      return "Your session expired. Please sign in again, then retry.";
+    }
+    if (err.status === 402 || /insufficient/i.test(err.message || "")) {
+      return "The shared XRPL pot doesn't have enough XRP to cover this stake. Lower the amount or top up the pot.";
+    }
+    if (err.status >= 500) {
+      return `Server error: ${err.message}. Try again in a few seconds.`;
+    }
+    return err.message || "Failed to create goal.";
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
 
-    const stakeNum = Number(form.stake);
-    if (!form.title.trim()) return setError("Goal title is required");
-    if (!Number.isFinite(stakeNum) || stakeNum <= 0)
-      return setError("Stake must be a positive number of XRP");
-    if (!form.targetAt) return setError("Target time is required");
+    if (!form.title.trim()) {
+      return setError("Goal title is required (e.g. \"Go to the gym\").");
+    }
+    if (form.title.trim().length > 200) {
+      return setError("Goal title is too long (200 characters max).");
+    }
 
+    const stakeNum = Number(form.stake);
+    if (!Number.isFinite(stakeNum) || stakeNum <= 0) {
+      return setError(
+        "Stake must be a positive number of XRP (e.g. 2 or 0.5)."
+      );
+    }
+    if (stakeNum > 1000) {
+      return setError(
+        "Stake is too large. Pick something under 1000 XRP for the demo."
+      );
+    }
+
+    if (!form.targetAt) {
+      return setError("Target time is required.");
+    }
     const targetDate = new Date(form.targetAt);
-    if (Number.isNaN(targetDate.getTime()))
-      return setError("Target time is invalid");
+    if (Number.isNaN(targetDate.getTime())) {
+      return setError("Target time is invalid — pick a date and time.");
+    }
+
+    const windowMins = Number(form.windowMinutes);
+    if (!Number.isFinite(windowMins) || windowMins < 5) {
+      return setError("Window must be at least 5 minutes.");
+    }
+
+    if (!Number.isFinite(Number(form.lat)) || !Number.isFinite(Number(form.lng))) {
+      return setError("Pick a location on the map first.");
+    }
 
     const payload = {
       title: form.title.trim(),
@@ -85,7 +128,7 @@ function AddBetModal({ open, onClose, onCreated }) {
       },
       target: {
         targetAt: targetDate.toISOString(),
-        windowMinutes: Number(form.windowMinutes) || 30,
+        windowMinutes: windowMins || 120,
       },
     };
 
@@ -95,7 +138,7 @@ function AddBetModal({ open, onClose, onCreated }) {
       onCreated?.(res);
       onClose?.();
     } catch (err) {
-      setError(err.message || "Failed to create goal");
+      setError(describeCreateError(err));
     } finally {
       setSubmitting(false);
     }
