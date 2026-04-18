@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { resolveGoal } from "@/lib/resolve";
+import { requireAdmin } from "@/lib/admin-auth";
 
 // Manual escape hatch for demos / admin. The auto-resolve path lives in
-// the proof upload handler (success case) and in a deadline sweep
-// (fail case, future work). Both go through lib/resolve.js#resolveGoal.
+// the proof upload handler (success case) and in the expire sweep
+// (fail case). All paths go through lib/resolve.js#resolveGoal.
+//
+// Protected: callers must send `x-admin-secret: <ADMIN_SECRET>`.
 
 const ALLOWED = new Set(["succeeded", "failed"]);
 
 export async function POST(request) {
+  const unauthorized = requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   try {
     let body;
     try {
@@ -45,7 +51,7 @@ export async function POST(request) {
       const { goal, alreadyResolved } = await resolveGoal(
         goalId,
         normalized,
-        "system"
+        "admin"
       );
       if (!goal) {
         return NextResponse.json(

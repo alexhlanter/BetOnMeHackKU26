@@ -18,6 +18,14 @@ import { resolveGoal } from "@/lib/resolve";
 // is a verified "single" goal, auto-resolves it to succeeded.
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const MAX_BYTES = 10 * 1024 * 1024; // 10MB cap — plenty for a phone selfie
+const ALLOWED_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 async function ensureUploadDir() {
   try {
@@ -59,6 +67,24 @@ export async function POST(request) {
         return NextResponse.json(
           { error: 'Field "file" (an image) is required' },
           { status: 400 }
+        );
+      }
+      if (imageFile.size === 0) {
+        return NextResponse.json(
+          { error: 'Field "file" is empty' },
+          { status: 400 }
+        );
+      }
+      if (imageFile.size > MAX_BYTES) {
+        return NextResponse.json(
+          { error: `File too large: max ${MAX_BYTES} bytes` },
+          { status: 413 }
+        );
+      }
+      if (imageFile.type && !ALLOWED_MIMES.has(imageFile.type)) {
+        return NextResponse.json(
+          { error: `Unsupported file type: ${imageFile.type}` },
+          { status: 415 }
         );
       }
     } else if (contentType.includes("application/json")) {
@@ -179,7 +205,7 @@ export async function POST(request) {
         const { goal: resolvedGoal } = await resolveGoal(
           goalId,
           "succeeded",
-          "system"
+          "proof"
         );
         resolution = {
           status: resolvedGoal?.status ?? null,

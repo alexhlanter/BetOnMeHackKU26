@@ -17,6 +17,7 @@ This document describes the backend work merged on the `integration` branch so t
 | `POT_WALLET_SEED` | Pot wallet; signs `EscrowFinish` when a goal **fails** so funds move per escrow rules. |
 | `XRPL_POT_WALLET_ADDRESS` | Pot’s classic address (reference / debugging). |
 | `XRPL_CHARITY_ADDRESS` | Charity’s classic address; used as the on-chain escrow **Destination** (Option B). Until you use a second testnet wallet, it may match the pot address and still work. |
+| `ADMIN_SECRET` | Shared secret required as the `x-admin-secret` header on admin endpoints (`/api/goals/resolve`, `/api/goals/expire`). |
 
 See `.env.example` for placeholders. Local secrets stay in `.env.local` (gitignored).
 
@@ -29,12 +30,18 @@ See `.env.example` for placeholders. Local secrets stay in `.env.local` (gitigno
 | `lib/resolve.js` | `resolveGoal(goalId, outcome, triggeredBy)` — updates Mongo; on `failed`, calls XRPL `finishEscrow`; on `succeeded`, only DB (refund is separate). Idempotent if goal is no longer `active`. |
 | `lib/xrpl.ts` | `CreateEscrowParams` now uses `destinationAddress` (charity), not `potAddress`. |
 | `types/index.ts` | Same rename for TypeScript types. |
+| `lib/admin-auth.js` | `requireAdmin(request)` — checks `x-admin-secret` header against `ADMIN_SECRET` env. |
 
 ## Dependencies
 
 - **`exifr`** — server-side EXIF parsing in proof upload (GPS + capture time).
 
 ## API routes (behavior overview)
+
+### `GET /api/charities`
+
+- Returns `{ "charities": [{ id, name, description }, ...] }`.
+- No XRPL addresses in the response — use the `id` in `POST /api/goals/create`.
 
 ### `POST /api/users/create`
 
@@ -51,19 +58,28 @@ See `.env.example` for placeholders. Local secrets stay in `.env.local` (gitigno
 
 - Returns goals with the full projection: `type`, `location`, `target`, `charity`, `ownerAddress`, `escrow`, `escrowState`, `resolvedAt`, `resolvedBy`, etc.
 
-### `POST /api/goals/resolve`
+### `POST /api/goals/resolve` (admin)
 
+- Header: **`x-admin-secret: $ADMIN_SECRET`** required. 401 otherwise.
 - Body: `{ "goalId": "...", "outcome": "succeeded" | "failed" }` (also accepts legacy `"success"` / `"fail"`).
-- Delegates to `resolveGoal`. **Failed** path submits **EscrowFinish** and sets `escrowState: "finished"` and `escrow.finishTxHash` when successful.
+- Delegates to `resolveGoal`. **Failed** path submits **EscrowFinish** and sets `escrowState: "finished"` and `escrow.finishTxHash` when successful. Writes `resolvedBy: "admin"`.
+
+### `POST /api/goals/expire` (admin)
+
+- Header: **`x-admin-secret: $ADMIN_SECRET`** required. 401 otherwise.
+- No body required.
+- Scans up to 200 active goals; for any single goal whose `target.targetAt + target.windowMinutes` is already past, calls `resolveGoal` with `failed` + `resolvedBy: "cron"` (so the stake moves to charity).
+- Returns `{ scanned, failedCount, skippedCount, errorCount, failed[], skipped[], errors[] }` for visibility.
 
 ### `POST /api/proofs/upload`
 
 - Preferred: **`multipart/form-data`** with `goalId`, `userId`, and `file` (image).
+- Size cap **10MB**; only `image/jpeg|png|webp|heic|heif` accepted. Returns 413 / 415 when violated.
 - Parses EXIF for GPS and capture time; runs `verifyProof`; stores `verification.{status,reason,checkedAt,distanceMeters}`.
-- For **`single`** goals that are still **`active`**, a **verified** proof triggers auto-resolve to **`succeeded`** via `resolveGoal`.
+- For **`single`** goals that are still **`active`**, a **verified** proof triggers auto-resolve to **`succeeded`** (writes `resolvedBy: "proof"`).
 - **Legacy:** `application/json` with `imageUrl` still accepted; without EXIF, verification typically ends as `rejected` (`no_exif_gps` / `no_exif_time`).
 
-### `POST /api/goals/refund` (new)
+### `POST /api/goals/refund`
 
 - Body: `{ "goalId": "..." }`.
 - Only when `status === "succeeded"` and current time **≥ `deadline`**, submits **EscrowCancel** with the user seed and updates `escrowState: "cancelled"` and `escrow.cancelTxHash`.
@@ -88,9 +104,10 @@ See `.env.example` for placeholders. Local secrets stay in `.env.local` (gitigno
 ## Known limitations (not blocking a hackathon demo)
 
 - **`type: "recurring"`** is rejected until that path is implemented.
-- **No cron** yet for auto-failing goals that never get a proof or manual resolve; use `POST /api/goals/resolve` for demos.
+- **No scheduler** runs the expire sweep automatically; hit `POST /api/goals/expire` from a cron, a button, or `curl` during demos.
 - **Proof images** are written under `public/uploads/` locally; not ideal for serverless hosting without switching to object storage.
 - **Charity address** may equal pot on testnet until you assign a separate `XRPL_CHARITY_ADDRESS`.
+- **`ADMIN_SECRET`** is a shared constant; fine for a hackathon but not for real users.
 
 ## Git
 
