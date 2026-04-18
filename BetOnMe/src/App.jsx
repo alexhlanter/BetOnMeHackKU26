@@ -7,7 +7,6 @@ import SignIn from "./pages/Sign-in";
 import { AuthProvider } from "./lib/AuthContext";
 import { DevModeProvider } from "./lib/DevModeProvider";
 import SignUp from "./pages/Signup";
-import home from "./pages/home";
 import Landingpage from "./pages/Landingpage";
 
 function App() {
