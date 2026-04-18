@@ -7,7 +7,6 @@ import SignIn from "./pages/Sign-in";
 import { AuthProvider } from "./lib/AuthContext";
 import { DevModeProvider } from "./lib/DevModeProvider";
 import SignUp from "./pages/Signup";
-import home from "./pages/home";
 import Landingpage from "./pages/Landingpage";
 
 function App() {
@@ -18,7 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<Landingpage />} />
-              <Route path="home" element={<home />} />
+              <Route path="home" element={<Home />} />
               <Route path="bets" element={<Bets />} />
               <Route path="profile" element={<Profile />} />
               <Route path="sign-in" element={<SignIn />} />

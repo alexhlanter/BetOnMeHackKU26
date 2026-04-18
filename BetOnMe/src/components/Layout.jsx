@@ -17,8 +17,9 @@ function Layout() {
   // Redirect logic: kick unauthenticated users to /sign-in for private pages.
   useEffect(() => {
     if (loading) return;
+    const isLanding = location.pathname === "/";
     const isAuthPage = location.pathname.startsWith("/sign-in");
-    if (!user && !isAuthPage) {
+    if (!user && !isAuthPage && !isLanding) {
       navigate("/sign-in", { replace: true, state: { from: location.pathname } });
     }
     if (user && isAuthPage) {
