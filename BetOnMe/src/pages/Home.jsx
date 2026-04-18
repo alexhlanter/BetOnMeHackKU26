@@ -2,13 +2,13 @@ import "./Home.css";
 
 function Home() {
   return (
-    <div className="container">
-
+    <div className="home-container">
+    <h2 className='title'>BetOnMe</h2>
       {/* LEFT SIDE */}
       <div className="left">
-
+        
         <div className="box goal">
-          <h2>Current Goal</h2>
+          <h2>Current Bet</h2>
           <p>Finish studying React fundamentals</p>
         </div>
 
@@ -23,13 +23,13 @@ function Home() {
       <div className="right">
 
         <div className="box add">
-          <h3>Add Goal</h3>
+          <h3>Add Bet</h3>
           <button>Add +</button>
         </div>
 
         <div className="box ratio">
-          <h3>Completion Ratio</h3>
-          <p>7 / 10 goals completed</p>
+          <h3>Current Streak</h3>
+          <p>0 bet streak...</p>
         </div>
 
       </div>
@@ -37,5 +37,4 @@ function Home() {
     </div>
   );
 }
-
 export default Home;

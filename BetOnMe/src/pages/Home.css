@@ -1,23 +1,33 @@
-.container {
+.home-container {
   display: grid;
   grid-template-columns: 2fr 1fr;
+  grid-template-rows: auto 1fr;
   gap: 20px;
   padding: 20px;
   height: 100vh;
 }
 
+.title {
+  grid-column:1 / -1;
+  color: white;
+  font-family: Georgia;
+  text-align: left;
+  margin: 0;
+  padding: 0;
+  font-size: 2rem;
+}
 /* LEFT COLUMN STACK */
 .left {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  gap: 20px;
+  gap: 50px;
 }
 
 /* RIGHT COLUMN STACK */
 .right {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  gap: 20px;
+  gap: 50px;
 }
 
 /* OPTIONAL PAGE-SPECIFIC TWEAKS */
@@ -28,3 +38,10 @@
 .week {
   opacity: 0.9;
 }
+
+.box h2, .box h3{
+  align-self: flex-start;
+  text-decoration: underline;
+  margin-top: 0;
+}
+

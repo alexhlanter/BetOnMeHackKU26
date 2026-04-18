@@ -19,11 +19,13 @@ function SignUp() {
                 style={{margin: "10px", padding: "10px", width: "300px"}}
             />
 
+            <p className="requisites">**Password Requirements**</p>
+            <p className="rules">-Password must be 8 characters long. <br/>-Must contain use of at least one special character and one number</p>
+            
             <button style={{marginTop: "10px", padding: "10px 30px"}}>
                 Get Started
             </button>
-            <p className="requisites">**Password Requirements**</p>
-
+            
         </div>
     );
 }

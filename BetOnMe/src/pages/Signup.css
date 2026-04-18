@@ -41,6 +41,15 @@ p {
     color: gray;
     padding: 10px;
 }
+
+.rules{
+    width: 300px;
+    text-align: left;
+    font-size: 0.75rem;
+    color: gray;
+    padding: 5px;
+}
+
 button {
     margin-top: 10px;
     padding: 10px 30px;
