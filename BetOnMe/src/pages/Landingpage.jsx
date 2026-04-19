@@ -1,5 +1,6 @@
 import "./Landingpage.css";
 
+
 export default function Landing() {
   return (
     <div className="lp">
@@ -44,11 +45,11 @@ export default function Landing() {
           </div>
           <div className="photo-card">
             <div className="photo-placeholder">
-              
+                Photo 3
             </div>
             <h3>Track your habits</h3>
             <p>Complete your goal, get paid back.</p>
-          </div>
+            </div>
         </div>
       </section>
 

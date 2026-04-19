@@ -112,12 +112,13 @@
     overflow: hidden;
   }
   
-  .photo-placeholder img {
+  .photo-img {
     width: 100%;
-    height: 100%;
+    height: 200px;
     object-fit: cover;
     border-radius: 12px;
     border: 2px solid red;
+    overflow: hidden;
   }
   
   .photo-card h3 {
@@ -149,9 +150,7 @@
     width:100%;
     padding: 0 10px;
   }
-  .contact-section ul {
-
-  }
+  
   .form-group {
     display: flex;
     flex-direction: column;
