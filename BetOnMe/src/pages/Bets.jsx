@@ -30,6 +30,49 @@ function timeLeftLabel(targetIso, windowMinutes, now) {
   return `${days}d`;
 }
 
+function timeLeftUntil(endIso, now) {
+  if (!endIso) return "—";
+  const ms = new Date(endIso).getTime() - now;
+  if (ms <= 0) return "past due";
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 48) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d`;
+}
+
+const DAY_LABELS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function formatTime(hour, minute) {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function describeRecurringSchedule(schedule) {
+  if (!schedule) return null;
+  const days = Array.isArray(schedule.daysOfWeek)
+    ? [...schedule.daysOfWeek]
+        .sort((a, b) => a - b)
+        .map((d) => DAY_LABELS_SHORT[d])
+        .join("/")
+    : "";
+  let timePart = "";
+  if (schedule.timeMode === "same" && schedule.same) {
+    timePart = ` @ ${formatTime(schedule.same.hour, schedule.same.minute)}`;
+  } else if (schedule.timeMode === "perDay") {
+    timePart = " (per-day times)";
+  }
+  const weeks = schedule.weeks
+    ? ` × ${schedule.weeks} ${schedule.weeks === 1 ? "week" : "weeks"}`
+    : "";
+  return `${days}${timePart}${weeks}`;
+}
+
 function statusBadgeClass(status) {
   switch (status) {
     case "active":
@@ -192,13 +235,32 @@ function Bets() {
                 </td>
               </tr>
             ) : (
-              visibleGoals.map((g) => (
+              visibleGoals.map((g) => {
+                const isRecurring = g.type === "recurring";
+                const scheduleLabel = isRecurring
+                  ? describeRecurringSchedule(g.schedule)
+                  : null;
+                const completed = g.progress?.completedCount ?? 0;
+                const required =
+                  g.target?.requiredCount ??
+                  (Array.isArray(g.target?.scheduledTimes)
+                    ? g.target.scheduledTimes.length
+                    : null);
+                return (
                 <tr key={g.id}>
                   <td>
                     <div className="goal-cell">
                       <span className="goal-title">{g.title}</span>
+                      {scheduleLabel && (
+                        <span className="muted small">{scheduleLabel}</span>
+                      )}
                       {g.location?.name && (
                         <span className="muted small">@ {g.location.name}</span>
+                      )}
+                      {isRecurring && required != null && (
+                        <span className="muted small">
+                          {completed}/{required} sessions completed
+                        </span>
                       )}
                       <div className="tx-chips">
                         <TxChip
@@ -216,11 +278,13 @@ function Bets() {
                   </td>
                   <td>
                     {g.status === "active"
-                      ? timeLeftLabel(
-                          g.target?.targetAt,
-                          g.target?.windowMinutes,
-                          now
-                        )
+                      ? isRecurring
+                        ? timeLeftUntil(g.target?.endAt, now)
+                        : timeLeftLabel(
+                            g.target?.targetAt,
+                            g.target?.windowMinutes,
+                            now
+                          )
                       : g.status}
                   </td>
                   <td>{g.stakeAmount} XRP</td>
@@ -275,7 +339,8 @@ function Bets() {
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
