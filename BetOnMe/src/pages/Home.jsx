@@ -40,7 +40,7 @@ function formatDateShort(iso) {
 // Count active goals per day of week (Mon-Sun)
 function buildWeeklyBuckets(goals) {
   // Index 0=Mon … 6=Sun
-  const labels = ["M", "T", "W", "T", "F", "S", "S"];
+  const labels = ["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"];
   const buckets = Array.from({ length: 7 }, () => ({ total: 0, done: 0 }));
   for (const g of goals) {
     const targetIso = g?.target?.targetAt;
@@ -151,7 +151,7 @@ function Home() {
                   className="btn btn-primary"
                   onClick={() => setModalOpen(true)}
                 >
-                  + Place your first bet
+                  + Place your bet
                 </button>
               </div>
             )}
