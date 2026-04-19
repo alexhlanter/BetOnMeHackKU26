@@ -134,21 +134,31 @@
   }
   
   /* Additional info */
+  .contact-section {
+    padding-bottom: 20px;
+  }
+  
   .contact-section h2 {
-    padding: 4rem 2rem;
+    padding: 2rem;
     width:100%;
     margin: 0 auto;
     text-align: center;
     text-decoration: underline;
   }
   
-  .contact-section p {
+  .contact-section ul {
     font-size: 14px;
     color: rgb(86, 86, 86);
-    margin-bottom: 2rem;
+    margin-bottom: 20px !important;
     text-align: center;
     width:100%;
     padding: 0 10px;
+    list-style: none;
+  }
+
+  .contact-section ul li {
+    line-height: 2.6px;
+    margin-bottom: 22px;
   }
 
   .form-group {
@@ -172,14 +182,4 @@
   .form-group textarea {
     resize: vertical;
     min-height: 120px;
-  }
-  
-  
-  /* Footer */
-  .footer {
-    text-align: center;
-    padding: 1.5rem 0;
-    border-top: 1px solid #e5e7eb;
-    font-size: 13px;
-    color: #6b7280;
   }

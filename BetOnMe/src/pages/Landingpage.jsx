@@ -13,7 +13,7 @@ export default function Landing() {
         <div className="site-title">BetOnMe</div>
         <h1 className="headline">Real Steps, Real Stakes</h1>
         <p className="subtext">
-          Put your money where your mind is. Use BetonMe to make bets on yourself towards goals
+          Put your money where your mind is. Use BetOnMe to make bets on yourself towards goals
           that matter to you. Stash away some money and gather it back as a reward once you've completed your goal.
           Fail your goal? Don't worry, your money goes towards a charitable foundation of your choice. Building accountability and good habits.
         </p> 
@@ -51,7 +51,6 @@ export default function Landing() {
       {/* Additional info section */}
       <section className="contact-section">
         <h2>More Information For You</h2>
-        <p>
             <ul>
                 <li>Your stake is locked on the XRP Ledger when you commit to a goal</li>
                 <li>Money goes back to you if you succeed, or to charity if you fail</li>
@@ -62,12 +61,7 @@ export default function Landing() {
                 <li>Blockchain executes first — XRPL transactions happen before our database even updates</li>
                 <li>Goal state and chain state are kept separate, so you can batch refunds on your own schedule</li>
             </ul>
-        </p>
       </section>
-
-      <footer className="footer">
-        © 2026 BetonMe · Privacy · Terms
-      </footer>
     </div>
   );
 }
