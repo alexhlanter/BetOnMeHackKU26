@@ -12,7 +12,7 @@ function Navbar({ onOpenSidebar }) {
 
       <div className="nav-links">
         <NavLink to="/home" end className={({ isActive }) => (isActive ? "active" : "")}>
-          Home
+          Dashboard
         </NavLink>
         <NavLink to="/bets" className={({ isActive }) => (isActive ? "active" : "")}>
           Bets
