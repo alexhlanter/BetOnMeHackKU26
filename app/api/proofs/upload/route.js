@@ -368,33 +368,100 @@ export async function POST(request) {
     const insertResult = await proofs.insertOne(doc);
 
     // Decision #6: auto-resolve on verified proof. Single goals complete
-    // immediately; recurring would bump a counter here (not implemented yet).
+    // immediately. Recurring goals claim one scheduled slot per verified
+    // proof and only resolve to "succeeded" once every slot is claimed.
     let resolution = null;
-    if (verdict.ok && goal.type === "single" && goal.status === "active") {
-      try {
-        const { goal: resolvedGoal } = await resolveGoal(
-          goalId,
-          "succeeded",
-          "proof"
-        );
-        resolution = {
-          status: resolvedGoal?.status ?? null,
-          escrowState: resolvedGoal?.escrowState ?? null,
-          resolvedAt: resolvedGoal?.resolvedAt
-            ? new Date(resolvedGoal.resolvedAt).toISOString()
-            : null,
-          // Surface on-chain hashes so the UI can deep-link to the XRPL
-          // testnet explorer in the success banner. On the "succeeded"
-          // path there is no finishTxHash yet (that's the later refund),
-          // but createTxHash proves the stake really was locked.
-          createTxHash: resolvedGoal?.escrow?.createTxHash ?? null,
-          finishTxHash: resolvedGoal?.escrow?.finishTxHash ?? null,
-        };
-      } catch (resolveErr) {
-        // We still return the proof — resolution failure shouldn't throw
-        // away the uploaded proof record.
-        console.error("[proofs/upload] auto-resolve failed", resolveErr);
-        resolution = { error: String(resolveErr?.message || resolveErr) };
+    let recurringProgress = null;
+    if (verdict.ok && goal.status === "active") {
+      if (goal.type === "single") {
+        try {
+          const { goal: resolvedGoal } = await resolveGoal(
+            goalId,
+            "succeeded",
+            "proof"
+          );
+          resolution = {
+            status: resolvedGoal?.status ?? null,
+            escrowState: resolvedGoal?.escrowState ?? null,
+            resolvedAt: resolvedGoal?.resolvedAt
+              ? new Date(resolvedGoal.resolvedAt).toISOString()
+              : null,
+            // Surface on-chain hashes so the UI can deep-link to the XRPL
+            // testnet explorer in the success banner. On the "succeeded"
+            // path there is no finishTxHash yet (that's the later refund),
+            // but createTxHash proves the stake really was locked.
+            createTxHash: resolvedGoal?.escrow?.createTxHash ?? null,
+            finishTxHash: resolvedGoal?.escrow?.finishTxHash ?? null,
+          };
+        } catch (resolveErr) {
+          // We still return the proof — resolution failure shouldn't throw
+          // away the uploaded proof record.
+          console.error("[proofs/upload] auto-resolve failed", resolveErr);
+          resolution = { error: String(resolveErr?.message || resolveErr) };
+        }
+      } else if (goal.type === "recurring" && verdict.matchedScheduledAt) {
+        // Atomically claim the slot. The $ne guard makes the claim a no-op
+        // if a concurrent upload already credited the same slot, which can
+        // happen if a user double-taps "Upload" with a borderline timestamp.
+        try {
+          const slotDate = new Date(verdict.matchedScheduledAt);
+          const updated = await goals.findOneAndUpdate(
+            {
+              _id: new ObjectId(goalId),
+              status: "active",
+              "progress.creditedTimes": { $ne: slotDate },
+            },
+            {
+              $push: { "progress.creditedTimes": slotDate },
+              $inc: { "progress.completedCount": 1 },
+            },
+            { returnDocument: "after" }
+          );
+
+          if (!updated) {
+            // Either the slot was already credited or the goal is no longer
+            // active. Surface this so the client can still show "verified"
+            // for the proof itself but not double-count.
+            const refreshed = await goals.findOne({ _id: new ObjectId(goalId) });
+            recurringProgress = {
+              completedCount: refreshed?.progress?.completedCount ?? null,
+              requiredCount: refreshed?.target?.requiredCount ?? null,
+              creditedSlot: null,
+              alreadyCredited: true,
+            };
+          } else {
+            const completed = updated.progress?.completedCount ?? 0;
+            const required = updated.target?.requiredCount ?? 0;
+            recurringProgress = {
+              completedCount: completed,
+              requiredCount: required,
+              creditedSlot: verdict.matchedScheduledAt,
+              alreadyCredited: false,
+            };
+
+            if (completed >= required) {
+              const { goal: resolvedGoal } = await resolveGoal(
+                goalId,
+                "succeeded",
+                "proof"
+              );
+              resolution = {
+                status: resolvedGoal?.status ?? null,
+                escrowState: resolvedGoal?.escrowState ?? null,
+                resolvedAt: resolvedGoal?.resolvedAt
+                  ? new Date(resolvedGoal.resolvedAt).toISOString()
+                  : null,
+                createTxHash: resolvedGoal?.escrow?.createTxHash ?? null,
+                finishTxHash: resolvedGoal?.escrow?.finishTxHash ?? null,
+              };
+            }
+          }
+        } catch (creditErr) {
+          console.error("[proofs/upload] recurring credit failed", creditErr);
+          recurringProgress = {
+            error: String(creditErr?.message || creditErr),
+          };
+        }
       }
     }
 
@@ -417,6 +484,7 @@ export async function POST(request) {
         },
         vlm: doc.vlm,
         resolution,
+        recurringProgress,
       },
       { status: 201 }
     );

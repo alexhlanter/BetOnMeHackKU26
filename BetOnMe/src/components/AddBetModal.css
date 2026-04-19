@@ -97,6 +97,118 @@
   margin-top: 6px;
 }
 
+.type-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--bg-elevated-2, #f1f5f9);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.type-toggle-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.type-toggle-btn:hover {
+  color: var(--text);
+}
+
+.type-toggle-btn.active {
+  background: var(--bg-elevated, #fff);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.day-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated, #fff);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.day-chip:hover {
+  color: var(--text);
+  border-color: #cbd5e1;
+}
+
+.day-chip.active {
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.25);
+}
+
+.per-day-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.per-day-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.per-day-label {
+  flex: 0 0 36px;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.per-day-row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.schedule-preview {
+  background: var(--bg-elevated-2, #f1f5f9);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.schedule-list li {
+  padding: 2px 0;
+}
+
+.schedule-list li.muted {
+  color: var(--text-dim);
+}
+
 @media (max-width: 500px) {
   .form-grid,
   .form-grid-3 {

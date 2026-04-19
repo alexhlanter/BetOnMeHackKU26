@@ -31,8 +31,20 @@ function serializeGoal(g) {
           windowMinutes: g.target.windowMinutes ?? null,
           startAt: toIsoOrNull(g.target.startAt),
           endAt: toIsoOrNull(g.target.endAt),
+          scheduledTimes: Array.isArray(g.target.scheduledTimes)
+            ? g.target.scheduledTimes.map(toIsoOrNull).filter(Boolean)
+            : null,
           requiredCount: g.target.requiredCount ?? null,
           minSpacingHours: g.target.minSpacingHours ?? null,
+        }
+      : null,
+    schedule: g.schedule ?? null,
+    progress: g.progress
+      ? {
+          completedCount: g.progress.completedCount ?? 0,
+          creditedTimes: Array.isArray(g.progress.creditedTimes)
+            ? g.progress.creditedTimes.map(toIsoOrNull).filter(Boolean)
+            : [],
         }
       : null,
     charity: g.charity ?? null,

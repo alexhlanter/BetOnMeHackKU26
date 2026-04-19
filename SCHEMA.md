@@ -143,31 +143,80 @@ goals from Alex's original branch do not have this subdocument.
 `escrowState` and `escrow.sequence` at minimum so the UI can trigger refunds
 and render history.
 
-#### Proposed additions (to support the real product)
+#### Goal-type fields
 
-The current `goals` schema cannot represent a show-up goal — no location, no
-target time, no cadence. These are the fields the product needs:
+`type` controls the shape of `target`, the deadline calculation, and the
+verification logic. Both types share the same `location`, `charity`,
+`ownerAddress`, `escrow`, and `escrowState` fields described above.
+
+##### Common
 
 | Field                   | Type                                              | Notes                                                         |
 | ----------------------- | ------------------------------------------------- | ------------------------------------------------------------- |
 | `type`                  | `"single" \| "recurring"`                         | Decides resolution logic.                                     |
-| `location.name`         | string                                            | Display name, e.g. "LA Fitness — Westside".                   |
+| `location.name`         | string?                                           | Display name, e.g. "LA Fitness — Westside".                   |
 | `location.lat`          | number                                            | Degrees, WGS84.                                               |
 | `location.lng`          | number                                            | Degrees, WGS84.                                               |
-| `location.radiusMeters` | number                                            | Acceptable geofence radius (e.g. 50).                         |
-| `target.targetAt`       | Date                                              | `single` only — the appointment time.                         |
-| `target.windowMinutes`  | number                                            | `single` only — ± minutes around `targetAt` that count.       |
-| `target.startAt`        | Date                                              | `recurring` only — window start.                              |
-| `target.endAt`          | Date                                              | `recurring` only — window end (also typically `deadline`).    |
-| `target.requiredCount`  | number                                            | `recurring` only — e.g. 5 sessions.                           |
-| `target.minSpacingHours`| number                                            | `recurring` only — prevents 5 proofs in one hour. Optional.   |
-| `progress.completedCount` | number                                          | `recurring` only — cached count of verified proofs. Optional. |
+| `location.radiusMeters` | number                                            | Acceptable geofence radius (e.g. 75).                         |
 | `ownerAddress`          | string                                            | User's XRPL address at create time (needed by `cancelEscrow`).|
 | `charity.name`          | string                                            | Display name, e.g. "Red Cross".                               |
 | `charity.address`       | string                                            | XRPL address. Frozen at create time — cannot change later.    |
 
-Without `type`, `location`, and `target.*`, the resolve route cannot decide
-success/failure automatically — it can only take a human's word for it.
+##### `type === "single"`
+
+| Field                  | Type     | Notes                                              |
+| ---------------------- | -------- | -------------------------------------------------- |
+| `target.targetAt`      | Date     | The appointment time.                              |
+| `target.windowMinutes` | number   | ± minutes around `targetAt` that count.            |
+
+`deadline` (escrow `CancelAfter`) = `targetAt + 24h`.
+
+##### `type === "recurring"` (count-based, pooled escrow)
+
+A recurring contract is "show up at this place on these days at these times,
+for N weeks. Hit every scheduled session to win the stake back; miss any
+and the whole pooled stake goes to charity."
+
+The browser is the only place that knows the user's timezone, so the client
+expands the human-friendly schedule into a concrete list of UTC instants and
+ships them as `target.scheduledTimes`. The server treats those instants as
+the authoritative ledger of slots; `schedule.*` is metadata kept around so
+the UI can re-render "Mon/Wed/Fri @ 7am × 2 weeks" without re-deriving it.
+
+| Field                       | Type                                               | Notes                                                                |
+| --------------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
+| `target.startAt`            | Date                                               | First scheduled instant. Computed server-side.                       |
+| `target.endAt`              | Date                                               | Last scheduled instant + `windowMinutes`. Used by lazy expiry.       |
+| `target.scheduledTimes`     | Date[]                                             | Authoritative list of session instants, sorted ascending.            |
+| `target.windowMinutes`      | number                                             | ± minutes around each scheduled instant that count as a check-in.    |
+| `target.requiredCount`      | number                                             | = `scheduledTimes.length`. All-or-nothing.                           |
+| `schedule.daysOfWeek`       | number[]                                           | 0=Sun … 6=Sat. UI metadata only — never used for verification timing.|
+| `schedule.weeks`            | number                                             | 1–4. UI metadata.                                                    |
+| `schedule.timeMode`         | `"same" \| "perDay"`                               | UI metadata.                                                         |
+| `schedule.same`             | `{ hour, minute }?`                                | Set when `timeMode === "same"`.                                      |
+| `schedule.perDay`           | `Record<dayOfWeek, { hour, minute }>?`             | Set when `timeMode === "perDay"`.                                    |
+| `progress.completedCount`   | number                                             | Cached length of `creditedTimes`.                                    |
+| `progress.creditedTimes`    | Date[]                                             | Subset of `scheduledTimes` that have been claimed by a verified proof. Atomically appended via Mongo `$ne` guard so no slot can be double-credited. |
+
+`deadline` (escrow `CancelAfter`) = `endAt + 1h` safety margin. There is one
+on-chain escrow per recurring contract — not one per session.
+
+**Resolution rules:**
+
+- Each verified proof claims the closest unclaimed `scheduledTimes[i]` whose
+  delta from the proof's `capturedAt` is ≤ `windowMinutes`. If no slot
+  qualifies, the proof is recorded as `rejected: outside_time_window`.
+- When `progress.completedCount >= target.requiredCount`, `/api/proofs/upload`
+  immediately calls `resolveGoal(goalId, "succeeded")` — same path as single
+  goals from there on (user refunds via `EscrowCancel` after `deadline`).
+- When `now > target.endAt` and `completedCount < requiredCount`,
+  `expireUserGoalsIfDue` calls `resolveGoal(goalId, "failed")` and the pot
+  signs `EscrowFinish` → stake routes to charity.
+
+**Hard caps (defense against runaway escrows):**
+
+- `MAX_RECURRING_WEEKS = 4`
+- `MAX_RECURRING_SESSIONS = 28`
 
 ---
 
